@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Voice Assistant</title>
+</head>
+<body>
+    <h1>AI Voice Assistant</h1>
+    <form action="/command" method="post" id="commandForm">
+        <input type="text" name="command" placeholder="Enter your command" required>
+        <button type="submit">Send Command</button>
+    </form>
+    <button id="voiceCommandBtn">Start Listening</button>
+    <p id="response"></p>
+
+    <script>
+        document.getElementById('commandForm').onsubmit = async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+
+            const response = await fetch(form.action, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                handleAssistantResponse(data.response);
+            } else {
+                handleAssistantResponse("Error: Could not connect to the server.");
+            }
+        };
+
+        const voiceCommandBtn = document.getElementById('voiceCommandBtn');
+        const responseElement = document.getElementById('response');
+
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = false;
+
+        voiceCommandBtn.onclick = () => {
+            recognition.start();
+            responseElement.innerText = "Listening...";
+        };
+
+        recognition.onresult = async (event) => {
+            const command = event.results[event.results.length - 1][0].transcript;
+            responseElement.innerText = "You said: " + command;
+
+            const formData = new FormData();
+            formData.append('command', command);
+
+            const response = await fetch('/command', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                handleAssistantResponse(data.response);
+            } else {
+                handleAssistantResponse("Error: Could not connect to the server.");
+            }
+        };
+
+        recognition.onerror = (event) => {
+            responseElement.innerText = "Error: " + event.error;
+        };
+
+        recognition.onend = () => {
+            responseElement.innerText = "Listening stopped. Click 'Start Listening' to resume.";
+        };
+
+        function handleAssistantResponse(text) {
+            responseElement.innerText = "Assistant: " + text;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'en-US';
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
